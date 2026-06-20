@@ -5,15 +5,18 @@
 // - prnomdulapin       : prénom du lapin (saisi librement)
 // - preferencebox      : préférence de composition (liste déroulante)
 //
-// Le front-end (version-14-1.html) doit appeler cette fonction en POST
-// avec { rabbitName, preference, promoCode } puis rediriger le
-// navigateur vers l'URL renvoyée (session.url).
+// Le code promo LAPIN25 (-25% sur le premier mois) est appliqué
+// automatiquement à chaque session créée.
 //
-// Variable d'environnement nécessaire :
-// - STRIPE_SECRET_KEY : clé secrète Stripe (sk_live_... ou clé restreinte
-//   avec les droits d'écriture sur Checkout Sessions — attention, la clé
-//   restreinte "Read only" utilisée pour le webhook NE SUFFIT PAS ici,
-//   il faut une clé avec le droit de créer des sessions Checkout)
+// Le front-end (version-14-1.html) doit appeler cette fonction en POST
+// avec { rabbitName, preference } puis rediriger le navigateur vers
+// l'URL renvoyée (session.url).
+//
+// Variables d'environnement nécessaires :
+// - STRIPE_SECRET_KEY : clé restreinte avec les droits d'écriture sur
+//   Checkout Sessions, Customers, Subscriptions (+ lecture sur Prices)
+//   — attention, la clé restreinte "Read only" utilisée pour le webhook
+//   NE SUFFIT PAS ici, il faut une clé différente, dédiée à ce projet.
 // - STRIPE_PRICE_ID   : l'ID du prix Stripe pour l'abonnement LMW
 
 import Stripe from 'stripe';
@@ -44,7 +47,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { rabbitName, preference, promoCode } = req.body || {};
+    const { rabbitName, preference } = req.body || {};
 
     if (!rabbitName || !preference) {
       return res.status(400).json({ error: 'rabbitName et preference sont requis.' });
@@ -77,14 +80,15 @@ export default async function handler(req, res) {
       ],
       success_url: 'https://lamaisonwinnie.com/merci.html',
       cancel_url: 'https://lamaisonwinnie.com/version-14-1.html',
+      // Code promo LAPIN25 (-25% sur le premier mois) appliqué
+      // automatiquement à chaque nouvelle commande — équivalent au
+      // paramètre ?prefilled_promo_code=LAPIN25 qu'on utilisait avec le
+      // Payment Link statique, mais ici fait directement côté serveur
+      // puisqu'on construit la session nous-mêmes.
+      discounts: [
+        { promotion_code: 'promo_1ThtpcEA9V2oCitaFqgfKq8t' },
+      ],
     };
-
-    if (promoCode) {
-      // Si tu utilises des codes promo via Stripe Coupons/Promotion codes,
-      // décommente et adapte cette ligne avec l'ID du Promotion Code Stripe
-      // correspondant (pas juste le texte "LAPIN25").
-      // sessionConfig.discounts = [{ promotion_code: 'promo_xxx' }];
-    }
 
     const session = await stripe.checkout.sessions.create(sessionConfig);
 
