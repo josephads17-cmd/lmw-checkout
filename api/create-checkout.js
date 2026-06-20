@@ -89,6 +89,11 @@ export default async function handler(req, res) {
       shipping_address_collection: {
         allowed_countries: ['FR'],
       },
+      // Collecte le numéro de téléphone du client (utile pour le
+      // transporteur en cas de besoin lors de la livraison).
+      phone_number_collection: {
+        enabled: true,
+      },
       // Code promo LAPIN25 (-25% sur le premier mois) appliqué
       // automatiquement à chaque nouvelle commande — équivalent au
       // paramètre ?prefilled_promo_code=LAPIN25 qu'on utilisait avec le
