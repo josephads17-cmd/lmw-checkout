@@ -13,11 +13,14 @@
 // l'URL renvoyée (session.url).
 //
 // Variables d'environnement nécessaires :
-// - STRIPE_SECRET_KEY : clé restreinte avec les droits d'écriture sur
+// - STRIPE_SECRET_KEY  : clé restreinte avec les droits d'écriture sur
 //   Checkout Sessions, Customers, Subscriptions (+ lecture sur Prices)
 //   — attention, la clé restreinte "Read only" utilisée pour le webhook
 //   NE SUFFIT PAS ici, il faut une clé différente, dédiée à ce projet.
-// - STRIPE_PRICE_ID   : l'ID du prix Stripe pour l'abonnement LMW
+// - STRIPE_PRICE_ID    : l'ID du prix Stripe pour l'abonnement LMW
+// - STRIPE_PROMO_CODE_ID : l'ID du Promotion Code Stripe pour LAPIN25
+//   (différent entre mode Live et mode Test — pense à utiliser le bon
+//   selon l'environnement sur lequel ce projet pointe à un instant donné)
 
 import Stripe from 'stripe';
 
@@ -92,7 +95,7 @@ export default async function handler(req, res) {
       // Payment Link statique, mais ici fait directement côté serveur
       // puisqu'on construit la session nous-mêmes.
       discounts: [
-        { promotion_code: 'promo_1ThtpcEA9V2oCitaFqgfKq8t' },
+        { promotion_code: process.env.STRIPE_PROMO_CODE_ID },
       ],
     };
 
