@@ -80,6 +80,12 @@ export default async function handler(req, res) {
       ],
       success_url: 'https://lamaisonwinnie.com/merci.html',
       cancel_url: 'https://lamaisonwinnie.com/version-14-1.html',
+      // Collecte l'adresse de livraison du client — indispensable pour
+      // savoir où expédier la box chaque mois. Limité à la France pour
+      // l'instant ; ajoute d'autres codes pays ISO si besoin (ex: 'BE', 'CH').
+      shipping_address_collection: {
+        allowed_countries: ['FR'],
+      },
       // Code promo LAPIN25 (-25% sur le premier mois) appliqué
       // automatiquement à chaque nouvelle commande — équivalent au
       // paramètre ?prefilled_promo_code=LAPIN25 qu'on utilisait avec le
