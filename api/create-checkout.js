@@ -81,7 +81,7 @@ export default async function handler(req, res) {
           },
         },
       ],
-      success_url: 'https://lamaisonwinnie.com/merci.html',
+      success_url: 'https://lamaisonwinnie.com/merci.html?sid={CHECKOUT_SESSION_ID}',
       cancel_url: 'https://lamaisonwinnie.com/version-14-1.html',
       // Collecte l'adresse de livraison du client — indispensable pour
       // savoir où expédier la box chaque mois. Limité à la France pour
