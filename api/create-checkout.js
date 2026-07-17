@@ -112,6 +112,7 @@ export default async function handler(req, res) {
       mode: isMonthly ? 'subscription' : 'payment',
       line_items: lineItems,
       custom_fields: [rabbitNameField],
+      allow_promotion_codes: true,
       metadata: {
         rabbit_name: normalizedName || 'À renseigner dans Checkout',
         delivery_mode: deliveryMode,
