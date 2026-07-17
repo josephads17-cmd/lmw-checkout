@@ -47,7 +47,7 @@ const PRODUCT_PRICES = {
 const MONTHLY_SHIPPING_PRICE = 'price_1Tu9h9EA9V2oCitagttzyLXc';
 const FREE_SHIPPING_THRESHOLD_CENTS = 2990;
 const PRODUCT_UNIT_PRICE_CENTS = 590;
-const DEFAULT_CANCEL_URL = 'https://lamaisonwinnie.com/beta-v3-19.html';
+const DEFAULT_CANCEL_URL = 'https://lamaisonwinnie.com/?checkout=cancelled#composer';
 
 function getSafeCancelUrl(value) {
   if (!value) return DEFAULT_CANCEL_URL;
