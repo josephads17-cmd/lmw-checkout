@@ -134,7 +134,7 @@ export default async function handler(req, res) {
         shipping_free: String(shippingIsFree),
         composition: JSON.stringify(items),
       },
-      success_url: 'https://lamaisonwinnie.com/merci.html?sid={CHECKOUT_SESSION_ID}',
+      success_url: 'https://lamaisonwinnie.com/checkout-success.html?sid={CHECKOUT_SESSION_ID}',
       cancel_url: getSafeCancelUrl(cancelUrl),
       // Collecte l'adresse de livraison du client — indispensable pour
       // savoir où expédier la box chaque mois. Limité à la France pour
