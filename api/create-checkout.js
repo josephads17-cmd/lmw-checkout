@@ -69,9 +69,6 @@ export default async function handler(req, res) {
     const normalizedName = String(rabbitName || '').trim().slice(0, 22);
     const isMonthly = deliveryMode === 'monthly';
 
-    if (!normalizedName) {
-      return res.status(400).json({ error: 'Le prénom du lapin est requis.' });
-    }
     if (!['one_time', 'monthly'].includes(deliveryMode)) {
       return res.status(400).json({ error: 'Le rythme de livraison est invalide.' });
     }
@@ -101,19 +98,22 @@ export default async function handler(req, res) {
       lineItems.push({ price: MONTHLY_SHIPPING_PRICE, quantity: 1 });
     }
 
+    const rabbitNameField = {
+      key: 'prenomdulapin',
+      label: { type: 'custom', custom: 'Prénom du lapin' },
+      type: 'text',
+      optional: false,
+    };
+    if (normalizedName) {
+      rabbitNameField.text = { default_value: normalizedName };
+    }
+
     const sessionConfig = {
       mode: isMonthly ? 'subscription' : 'payment',
       line_items: lineItems,
-      custom_fields: [
-        {
-          key: 'prenomdulapin',
-          label: { type: 'custom', custom: 'Prénom du Lapin' },
-          type: 'text',
-          text: { default_value: normalizedName },
-        },
-      ],
+      custom_fields: [rabbitNameField],
       metadata: {
-        rabbit_name: normalizedName,
+        rabbit_name: normalizedName || 'À renseigner dans Checkout',
         delivery_mode: deliveryMode,
         shipping_free: String(shippingIsFree),
         composition: JSON.stringify(items),
@@ -153,7 +153,7 @@ export default async function handler(req, res) {
     if (isMonthly) {
       sessionConfig.subscription_data = {
         metadata: {
-          rabbit_name: normalizedName,
+          rabbit_name: normalizedName || 'À renseigner dans Checkout',
           delivery_mode: deliveryMode,
           shipping_free: String(shippingIsFree),
           composition: JSON.stringify(items),
