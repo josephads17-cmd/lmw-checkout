@@ -1,37 +1,52 @@
 // api/create-checkout.js
 //
-// Crée dynamiquement une session Stripe Checkout pour La Maison Winnie,
-// avec deux custom_fields :
-// - prnomdulapin       : prénom du lapin (saisi librement)
-// - preferencebox      : préférence de composition (liste déroulante)
-//
-// Le code promo LAPIN25 (-25% sur le premier mois) est appliqué
-// automatiquement à chaque session créée.
-//
-// Le front-end (version-14-1.html) doit appeler cette fonction en POST
-// avec { rabbitName, preference } puis rediriger le navigateur vers
-// l'URL renvoyée (session.url).
-//
-// Variables d'environnement nécessaires :
-// - STRIPE_SECRET_KEY  : clé restreinte avec les droits d'écriture sur
-//   Checkout Sessions, Customers, Subscriptions (+ lecture sur Prices)
-//   — attention, la clé restreinte "Read only" utilisée pour le webhook
-//   NE SUFFIT PAS ici, il faut une clé différente, dédiée à ce projet.
-// - STRIPE_PRICE_ID    : l'ID du prix Stripe pour l'abonnement LMW
-// - STRIPE_PROMO_CODE_ID : l'ID du Promotion Code Stripe pour LAPIN25
-//   (différent entre mode Live et mode Test — pense à utiliser le bon
-//   selon l'environnement sur lequel ce projet pointe à un instant donné)
+// Crée une session Stripe Checkout pour la composition de box V3.19.
+// Le navigateur envoie uniquement les identifiants de produits, leurs
+// quantités, le rythme de livraison et le prénom. Les Price IDs et le
+// calcul du seuil de livraison sont conservés côté serveur.
 
 import Stripe from 'stripe';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-const PREFERENCE_OPTIONS = [
-  { label: 'Équilibrée — 50% friandises / 50% jouets', value: 'equilibree' },
-  { label: 'Gourmande — 75% friandises / 25% jouets', value: 'gourmande' },
-  { label: 'Occupation — 75% jouets / 25% friandises', value: 'occupation' },
-  { label: 'Mastication douce', value: 'mastication' },
-];
+const PRODUCT_PRICES = {
+  calendula: {
+    oneTime: 'price_1Tu8g9EA9V2oCitax5HeBcAT',
+    monthly: 'price_1Tu8g9EA9V2oCitaxvUOr0GW',
+  },
+  rose: {
+    oneTime: 'price_1Tu8qHEA9V2oCita14Y9Pc7G',
+    monthly: 'price_1Tu8qHEA9V2oCitaFoiR5oy3',
+  },
+  camomille_bio: {
+    oneTime: 'price_1Tu8slEA9V2oCitafxqVUvCy',
+    monthly: 'price_1Tu8slEA9V2oCitak1KVILg1',
+  },
+  hibiscus_rouge: {
+    oneTime: 'price_1Tu8urEA9V2oCitaQc6G07E5',
+    monthly: 'price_1Tu8urEA9V2oCitaFRvHpYE6',
+  },
+  plantain: {
+    oneTime: 'price_1Tu8z0EA9V2oCitamWMjFanM',
+    monthly: 'price_1Tu8z0EA9V2oCitaDHpWvJId',
+  },
+  pissenlit: {
+    oneTime: 'price_1Tu914EA9V2oCitazZ1UxJ6F',
+    monthly: 'price_1Tu914EA9V2oCitaN1bOu69w',
+  },
+  framboisier: {
+    oneTime: 'price_1Tu939EA9V2oCitarwfrOpdV',
+    monthly: 'price_1Tu939EA9V2oCitaErgnptQd',
+  },
+  noisetier: {
+    oneTime: 'price_1Tu95AEA9V2oCitaFJgg3KZi',
+    monthly: 'price_1Tu95AEA9V2oCitasNNRnXES',
+  },
+};
+
+const MONTHLY_SHIPPING_PRICE = 'price_1Tu9h9EA9V2oCitagttzyLXc';
+const FREE_SHIPPING_THRESHOLD_CENTS = 2990;
+const PRODUCT_UNIT_PRICE_CENTS = 590;
 
 export default async function handler(req, res) {
   // Autorise les appels depuis le site (nécessaire car cette fonction vit
@@ -50,39 +65,61 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { rabbitName, preference } = req.body || {};
+    const { rabbitName, deliveryMode, items } = req.body || {};
+    const normalizedName = String(rabbitName || '').trim().slice(0, 22);
+    const isMonthly = deliveryMode === 'monthly';
 
-    if (!rabbitName || !preference) {
-      return res.status(400).json({ error: 'rabbitName et preference sont requis.' });
+    if (!normalizedName) {
+      return res.status(400).json({ error: 'Le prénom du lapin est requis.' });
+    }
+    if (!['one_time', 'monthly'].includes(deliveryMode)) {
+      return res.status(400).json({ error: 'Le rythme de livraison est invalide.' });
+    }
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'Ajoutez au moins un produit à la box.' });
+    }
+
+    const lineItems = [];
+    let productQuantity = 0;
+    for (const item of items) {
+      const product = PRODUCT_PRICES[item?.id];
+      const quantity = Number(item?.quantity);
+      if (!product || !Number.isInteger(quantity) || quantity < 1 || quantity > 20) {
+        return res.status(400).json({ error: 'La composition envoyée est invalide.' });
+      }
+      productQuantity += quantity;
+      lineItems.push({
+        price: isMonthly ? product.monthly : product.oneTime,
+        quantity,
+      });
+    }
+
+    const productsSubtotal = productQuantity * PRODUCT_UNIT_PRICE_CENTS;
+    const shippingIsFree = productsSubtotal >= FREE_SHIPPING_THRESHOLD_CENTS;
+
+    if (isMonthly && !shippingIsFree) {
+      lineItems.push({ price: MONTHLY_SHIPPING_PRICE, quantity: 1 });
     }
 
     const sessionConfig = {
-      mode: 'subscription',
-      line_items: [
-        {
-          price: process.env.STRIPE_PRICE_ID,
-          quantity: 1,
-        },
-      ],
+      mode: isMonthly ? 'subscription' : 'payment',
+      line_items: lineItems,
       custom_fields: [
         {
-          key: 'prnomdulapin',
+          key: 'prenomdulapin',
           label: { type: 'custom', custom: 'Prénom du Lapin' },
           type: 'text',
-          text: { default_value: rabbitName },
-        },
-        {
-          key: 'preferencebox',
-          label: { type: 'custom', custom: 'Préférence de composition' },
-          type: 'dropdown',
-          dropdown: {
-            options: PREFERENCE_OPTIONS,
-            default_value: preference,
-          },
+          text: { default_value: normalizedName },
         },
       ],
+      metadata: {
+        rabbit_name: normalizedName,
+        delivery_mode: deliveryMode,
+        shipping_free: String(shippingIsFree),
+        composition: JSON.stringify(items),
+      },
       success_url: 'https://lamaisonwinnie.com/merci.html?sid={CHECKOUT_SESSION_ID}',
-      cancel_url: 'https://lamaisonwinnie.com/version-14-1.html',
+      cancel_url: 'https://lamaisonwinnie.com/beta-v3-19.html',
       // Collecte l'adresse de livraison du client — indispensable pour
       // savoir où expédier la box chaque mois. Limité à la France pour
       // l'instant ; ajoute d'autres codes pays ISO si besoin (ex: 'BE', 'CH').
@@ -94,15 +131,35 @@ export default async function handler(req, res) {
       phone_number_collection: {
         enabled: true,
       },
-      // Code promo LAPIN25 (-25% sur le premier mois) appliqué
-      // automatiquement à chaque nouvelle commande — équivalent au
-      // paramètre ?prefilled_promo_code=LAPIN25 qu'on utilisait avec le
-      // Payment Link statique, mais ici fait directement côté serveur
-      // puisqu'on construit la session nous-mêmes.
-      discounts: [
-        { promotion_code: process.env.STRIPE_PROMO_CODE_ID },
-      ],
     };
+
+    // Les shipping_options sont uniquement disponibles pour une session
+    // ponctuelle. En mensuel, le Price récurrent ci-dessus est ajouté à
+    // l'abonnement sous le seuil de gratuité.
+    if (!isMonthly && !shippingIsFree) {
+      sessionConfig.shipping_options = [
+        {
+          shipping_rate_data: {
+            display_name: 'Livraison standard',
+            type: 'fixed_amount',
+            fixed_amount: { amount: 499, currency: 'eur' },
+            tax_behavior: 'inclusive',
+            tax_code: 'txcd_92010001',
+          },
+        },
+      ];
+    }
+
+    if (isMonthly) {
+      sessionConfig.subscription_data = {
+        metadata: {
+          rabbit_name: normalizedName,
+          delivery_mode: deliveryMode,
+          shipping_free: String(shippingIsFree),
+          composition: JSON.stringify(items),
+        },
+      };
+    }
 
     const session = await stripe.checkout.sessions.create(sessionConfig);
 
