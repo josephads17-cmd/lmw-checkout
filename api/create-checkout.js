@@ -47,6 +47,21 @@ const PRODUCT_PRICES = {
 const MONTHLY_SHIPPING_PRICE = 'price_1Tu9h9EA9V2oCitagttzyLXc';
 const FREE_SHIPPING_THRESHOLD_CENTS = 2990;
 const PRODUCT_UNIT_PRICE_CENTS = 590;
+const DEFAULT_CANCEL_URL = 'https://lamaisonwinnie.com/beta-v3-19.html';
+
+function getSafeCancelUrl(value) {
+  if (!value) return DEFAULT_CANCEL_URL;
+
+  try {
+    const url = new URL(String(value));
+    if (url.origin !== 'https://lamaisonwinnie.com') {
+      return DEFAULT_CANCEL_URL;
+    }
+    return url.toString();
+  } catch {
+    return DEFAULT_CANCEL_URL;
+  }
+}
 
 export default async function handler(req, res) {
   // Autorise les appels depuis le site (nécessaire car cette fonction vit
@@ -65,7 +80,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { rabbitName, deliveryMode, items } = req.body || {};
+    const { rabbitName, deliveryMode, items, cancelUrl } = req.body || {};
     const normalizedName = String(rabbitName || '').trim().slice(0, 22);
     const isMonthly = deliveryMode === 'monthly';
 
@@ -120,7 +135,7 @@ export default async function handler(req, res) {
         composition: JSON.stringify(items),
       },
       success_url: 'https://lamaisonwinnie.com/merci.html?sid={CHECKOUT_SESSION_ID}',
-      cancel_url: 'https://lamaisonwinnie.com/beta-v3-19.html',
+      cancel_url: getSafeCancelUrl(cancelUrl),
       // Collecte l'adresse de livraison du client — indispensable pour
       // savoir où expédier la box chaque mois. Limité à la France pour
       // l'instant ; ajoute d'autres codes pays ISO si besoin (ex: 'BE', 'CH').
