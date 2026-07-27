@@ -1,4 +1,4 @@
-// api/create-checkout.js
+  // api/create-checkout.js
   //
   // Crée une session Stripe Checkout pour la composition officielle et les
   // offres précomposées de la Beta. Les commandes classiques conservent leurs
@@ -43,7 +43,7 @@
       ],
     },
   };
-  
+
   const MONTHLY_SHIPPING_PRICE = 'price_1Tu9h9EA9V2oCitagttzyLXc';
   const FREE_SHIPPING_THRESHOLD_CENTS = 2360; // 4 sachets x 5,90€ — aligné sur le seuil affiché côté site
   const PRODUCT_UNIT_PRICE_CENTS = 590;
@@ -105,7 +105,6 @@
     if (total !== requiredQuantity) throw new Error(`Sélectionnez exactement ${requiredQuantity} références.`);
     return normalized;
   }
-
   export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', 'https://lamaisonwinnie.com');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -137,7 +136,7 @@
           bundle_name: bundle.name,
           composition: JSON.stringify(composition),
         };
-  
+
         const session = await stripe.checkout.sessions.create({
           mode: 'payment',
           line_items: [{ price: bundle.price, quantity: 1 }],
@@ -158,9 +157,10 @@
         return res.status(400).json({ error: 'Le rythme de livraison est invalide.' });
       }
       if (!Array.isArray(items) || items.length === 0) {
-    }
-  }
+        return res.status(400).json({ error: 'Ajoutez au moins un produit à la box.' });
+      }
 
+      const lineItems = [];
   function rabbitNameField(normalizedName) {
     const field = {
       key: 'prenomdulapin',
@@ -204,12 +204,12 @@
     if (total !== requiredQuantity) throw new Error(`Sélectionnez exactement ${requiredQuantity} références.`);
     return normalized;
   }
-
+            
   export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', 'https://lamaisonwinnie.com');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
+  
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'POST') {
       res.setHeader('Allow', 'POST');
